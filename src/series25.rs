@@ -89,6 +89,7 @@ enum Opcode {
     SectorErase = 0x20,
     BlockErase = 0xD8,
     ChipErase = 0xC7,
+    PowerDown = 0xB9,
 }
 
 bitflags! {
@@ -129,6 +130,7 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
     ///   of the flash chip. Will be driven low when accessing the device.
     pub fn init(spi: SPI, cs: CS) -> Result<Self, Error<SPI, CS>> {
         let mut this = Self { spi, cs };
+        this.release_power_down()?;
         let status = this.read_status()?;
         info!("Flash::init: status = {:?}", status);
 
@@ -179,6 +181,25 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
         // TODO: Consider changing this to a delay based pattern
         while self.read_status()?.contains(Status::BUSY) {}
         Ok(())
+    }
+
+    pub fn power_down(&mut self) -> Result<(), Error<SPI, CS>> {
+        self.write_enable()?;
+        let mut cmd_buf = [Opcode::PowerDown as u8];
+        self.command(&mut cmd_buf)?;
+        self.wait_done()?;
+        Ok(())
+    }
+
+    pub fn release_power_down(&mut self) -> Result<(), Error<SPI, CS>> {
+        self.write_enable()?;
+        let mut cmd_buf = [Opcode::ReadDeviceId as u8];
+        self.command(&mut cmd_buf)?;
+        Ok(())
+    }
+
+    pub fn destroy(self) -> SPI {
+        self.spi
     }
 }
 
