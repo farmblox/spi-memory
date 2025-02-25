@@ -131,14 +131,9 @@ impl<SPI: Transfer<u8>, CS: OutputPin> Flash<SPI, CS> {
     pub fn init(spi: SPI, cs: CS) -> Result<Self, Error<SPI, CS>> {
         let mut this = Self { spi, cs };
         this.release_power_down()?;
+
         let status = this.read_status()?;
         info!("Flash::init: status = {:?}", status);
-
-        // Here we don't expect any writes to be in progress, and the latch must
-        // also be deasserted.
-        if !(status & (Status::BUSY | Status::WEL)).is_empty() {
-            return Err(Error::UnexpectedStatus);
-        }
 
         Ok(this)
     }
